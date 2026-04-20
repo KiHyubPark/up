@@ -1,6 +1,8 @@
 spring:
   application:
     name: up
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 
 feign:
   example-api:
