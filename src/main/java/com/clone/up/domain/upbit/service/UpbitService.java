@@ -1,6 +1,7 @@
 package com.clone.up.domain.upbit.service;
 
 import com.clone.up.client.UpbitApiClient;
+import com.clone.up.domain.upbit.dto.UpbitPairResponse;
 import com.clone.up.domain.upbit.dto.UpbitTickerResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,11 @@ public class UpbitService {
 
     private final UpbitApiClient upbitApiClient;
 
-    public List<UpbitTickerResponse> getTicker() {
-        return upbitApiClient.getTicker();
+    public List<UpbitTickerResponse> getTicker(String markets) {
+        return upbitApiClient.getTicker(markets);
+    }
+
+    public List<UpbitPairResponse> getPairs() {
+        return upbitApiClient.getPairs();
     }
 }

@@ -1,11 +1,13 @@
 package com.clone.up.domain.upbit.controller;
 
+import com.clone.up.domain.upbit.dto.UpbitPairResponse;
 import com.clone.up.domain.upbit.service.UpbitService;
 import com.clone.up.domain.upbit.dto.UpbitTickerResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -24,7 +26,12 @@ public class UpbitController {
     private final UpbitService upbitService;
 
     @GetMapping("/ticker")
-    public List<UpbitTickerResponse> getTicker() {
-        return upbitService.getTicker();
+    public List<UpbitTickerResponse> getTicker(@RequestParam String markets) {
+        return upbitService.getTicker(markets);
+    }
+
+    @GetMapping("/pair")
+    public List<UpbitPairResponse> getPair() {
+        return upbitService.getPairs();
     }
 }
