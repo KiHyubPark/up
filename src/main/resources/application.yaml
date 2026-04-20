@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: up
+
+feign:
+  example-api:
+    url: ${EXAMPLE_API_URL:http://localhost:8080}
+
+logging:
+  level:
+    com.clone.up.client: DEBUG  # Feign 요청/응답 로그
