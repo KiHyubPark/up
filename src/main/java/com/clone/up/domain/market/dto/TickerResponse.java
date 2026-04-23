@@ -1,6 +1,6 @@
-package com.clone.up.domain.upbit.dto;
+package com.clone.up.domain.market.dto;
 
-public record UpbitTickerResponse(
+public record TickerResponse(
         String market,
         String tradeDate,
         String tradeTime,
