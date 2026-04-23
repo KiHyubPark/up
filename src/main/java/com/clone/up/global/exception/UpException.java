@@ -14,4 +14,10 @@ public class UpException extends RuntimeException {
         this.httpStatus = httpStatus;
         this.message = message;
     }
+
+    public UpException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.httpStatus = errorCode.getStatus();
+        this.message = errorCode.getMessage();
+    }
 }
