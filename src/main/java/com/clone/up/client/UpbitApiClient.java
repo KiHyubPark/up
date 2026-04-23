@@ -12,9 +12,12 @@ import java.util.List;
 // Base URL만 받도록 되어있음
 @FeignClient(name = "upbit", url = "https://api.upbit.com")
 public interface UpbitApiClient {
+
+    // 종목코드
     @RequestMapping(method = RequestMethod.GET, value = "/v1/ticker")
     List<UpbitTickerResponse> getTicker(@RequestParam String markets);
 
+    // 페어목록
     @RequestMapping(method = RequestMethod.GET, value = "/v1/market/all")
     List<UpbitPairResponse> getPairs();
 }
