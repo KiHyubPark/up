@@ -59,4 +59,5 @@ bin/
 *.log
 logs/
 
-.claude
+.claude/*
+!.claude/skills
