@@ -4,44 +4,43 @@
 
 | 항목 | 버전 |
 |---|---|
+| Java | 21 (LTS) |
 | Spring Boot | 3.4.5 |
 | Spring Cloud | 2024.0.1 |
-| Java | 21 (LTS) |
 | 빌드 | Gradle |
-| 주요 라이브러리 | Spring Cloud OpenFeign, Lombok |
+| 주요 라이브러리 | Spring Cloud OpenFeign, Lombok, springdoc-openapi 2.8.6 |
 
 ## 패키지 구조
 
 ```
 src/main/java/com/clone/up/
 │
-├── client/                          # Feign 클라이언트 인터페이스
-│   └── ExampleApiClient.java        # 외부 API 호출 정의 (샘플)
+├── client/
+│   └── UpbitApiClient.java          # 업비트 외부 API Feign 클라이언트
 │
-├── config/                          # Spring 설정
-│   └── FeignConfig.java             # Feign 타임아웃, 로그 레벨 설정
+├── config/
+│   ├── FeignConfig.java             # Feign 타임아웃, 로그 레벨 설정
+│   └── UpbitErrorDecoder.java       # 업비트 API 에러 디코더
 │
-├── domain/                          # 비즈니스 도메인 (도메인 단위로 패키지 분리)
-│   ├── up/                          # up 도메인
-│   │   ├── controller/
-│   │   │   └── UpController.java    # REST API 엔드포인트 (/api/v1/up)
-│   │   ├── service/                 # 비즈니스 로직 (추가 예정)
-│   │   └── dto/                     # 요청/응답 DTO (추가 예정)
-│   │
-│   └── example/                     # 샘플 도메인 (제거 예정)
-│       ├── ExampleService.java
+├── domain/
+│   └── market/                      # 시세 도메인
+│       ├── controller/
+│       │   └── MarketController.java
+│       ├── service/
+│       │   └── MarketService.java
 │       └── dto/
-│           └── ExampleResponse.java
+│           ├── TickerResponse.java   # record
+│           └── PairResponse.java     # record
 │
-├── global/                          # 전역 공통 처리 (추가 예정)
+├── global/
 │   ├── exception/
-│   │   ├── GlobalExceptionHandler.java   # 공통 예외 처리
-│   │   ├── BusinessException.java        # 공통 비즈니스 예외
-│   │   └── ErrorCode.java               # 에러 코드 enum
+│   │   ├── ErrorCode.java           # 에러 코드 enum
+│   │   ├── UpException.java         # 공통 비즈니스 예외
+│   │   └── GlobalExceptionHandler.java
 │   └── response/
-│       └── ApiResponse.java             # 공통 응답 포맷
+│       └── ApiResponse.java         # 공통 응답 포맷
 │
-└── UpApplication.java               # 애플리케이션 진입점 (@EnableFeignClients)
+└── UpApplication.java
 ```
 
 ## 패키지 역할
@@ -49,7 +48,7 @@ src/main/java/com/clone/up/
 | 패키지 | 역할 |
 |---|---|
 | `client` | Feign 클라이언트 인터페이스 (외부 API 엔드포인트 정의) |
-| `config` | Spring Bean 설정 (Feign, Security 등) |
+| `config` | Spring Bean 설정 (Feign 타임아웃, 에러 디코더) |
 | `domain/{name}/controller` | REST API 엔드포인트 |
 | `domain/{name}/service` | 비즈니스 로직, Feign 클라이언트 호출 |
 | `domain/{name}/dto` | 요청/응답 DTO (record 사용) |
@@ -63,11 +62,12 @@ src/main/java/com/clone/up/
 ```
 
 - 버전은 URL 경로로 관리 (`v1`, `v2`)
-- 폴더 구조는 도메인 기준, 버전은 어노테이션으로 관리
+- 도메인명은 복수형 사용 (`markets`, `candles` 등)
 
 ## 새 도메인 추가 방법
 
 1. `domain/{name}/` 패키지 생성
 2. `controller/`, `service/`, `dto/` 하위 패키지 추가
-3. 외부 API 호출이 필요하면 `client/{Name}ApiClient.java` 추가
-4. `application.yaml` 에 URL 환경변수 추가
+3. DTO는 `record`로 작성
+4. 외부 API 호출이 필요하면 `client/{Name}ApiClient.java` 추가
+5. `application.yaml`에 URL 환경변수 추가
