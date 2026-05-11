@@ -16,7 +16,14 @@ public enum ErrorCode {
     // Upbit
     UPBIT_INVALID_MARKET(HttpStatus.BAD_REQUEST, "잘못된 마켓 코드입니다"),
     UPBIT_RATE_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "업비트 API 요청 한도를 초과했습니다"),
-    UPBIT_API_ERROR(HttpStatus.BAD_GATEWAY, "업비트 API 호출에 실패했습니다");
+    UPBIT_API_ERROR(HttpStatus.BAD_GATEWAY, "업비트 API 호출에 실패했습니다"),
+
+    // Candle
+    CANDLE_COLLECT_FAILED(HttpStatus.BAD_GATEWAY, "캔들 데이터 수집에 실패했습니다"),
+
+    // Backtest
+    CANDLE_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "백테스팅에 필요한 캔들 데이터가 부족합니다"),
+    BACKTEST_NOT_FOUND(HttpStatus.NOT_FOUND, "백테스팅 결과를 찾을 수 없습니다");
 
     private final HttpStatus status;
     private final String message;

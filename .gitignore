@@ -59,5 +59,8 @@ bin/
 *.log
 logs/
 
+### H2 file DB ###
+data/
+
 .claude/*
 !.claude/skills
