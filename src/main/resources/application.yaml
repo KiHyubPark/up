@@ -24,6 +24,20 @@ feign:
   upbit:
     base-url: ${UPBIT_API_URL:https://api.upbit.com}
 
+trading:
+  mode: PAPER                    # LIVE | PAPER (기본: PAPER — 시그널 기록만)
+  market: KRW-BTC
+  candle-type: MINUTE_15
+  strategy-type: SCALPING
+  initial-capital: 1000000       # 일일 손실 한도 계산 기준 (단위: 원)
+  invest-ratio: 1.0              # 매수 시 자본 투입 비율 (0~1)
+  daily-loss-limit-percent: 3.0  # 일일 손실 한도 (%)
+  candle-warmup-count: 200       # 지표 계산 최소 캔들 수
+  scheduler-enabled: false       # true 시 자동매매 스케줄러 활성화 (로컬은 false)
+  # 전략 파라미터 (SCALPING 최적값)
+  rsi-oversold: 35
+  stop-loss-percent: 10.0
+
 logging:
   level:
     com.clone.up.client: DEBUG  # Feign 요청/응답 로그
