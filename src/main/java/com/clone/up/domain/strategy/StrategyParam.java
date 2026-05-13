@@ -13,7 +13,9 @@ public record StrategyParam(
         @JsonProperty("macdShortPeriod") int macdShortPeriod,
         @JsonProperty("macdLongPeriod") int macdLongPeriod,
         @JsonProperty("macdSignalPeriod") int macdSignalPeriod,
-        @JsonProperty("atrPeriod") int atrPeriod
+        @JsonProperty("atrPeriod") int atrPeriod,
+        @JsonProperty("atrStopMultiplier") double atrStopMultiplier,
+        @JsonProperty("stopLossPercent") double stopLossPercent
 ) {
     public static StrategyParam defaults() {
         return new StrategyParam(
@@ -27,30 +29,57 @@ public record StrategyParam(
                 12,   // macdShortPeriod
                 26,   // macdLongPeriod
                 9,    // macdSignalPeriod
-                14    // atrPeriod
+                14,   // atrPeriod
+                0.0,  // atrStopMultiplier (0 = 비활성)
+                0.0   // stopLossPercent   (0 = 비활성)
         );
     }
 
     /**
-     * SCALPING 전략 최적 파라미터 (15분봉 KRW-BTC 백테스팅 기준)
+     * SCALPING 전략 최적 파라미터 — 고정 10% 안전망 포함
      *
      * <p>검증 기간: 2025-05-13 ~ 2026-05-13 (1년, MINUTE_15)
      * <p>결과: 수익률 +21.38%, 승률 93.9%, 샤프 1.11, 칼마 3.21, PF 16.98
-     * <p>vs BTC 보유: -17.7% (약 39%p 알파)
+     * <p>-10% 손절은 1년간 미발동 (퍼포먼스 영향 없음) — 급락 안전망 용도
      */
     public static StrategyParam scalpingOptimized() {
         return new StrategyParam(
-                5,    // shortPeriod
-                20,   // longPeriod
-                14,   // rsiPeriod
-                35,   // rsiOversold — 30(신호 부족) vs 40(낙폭 큼) 사이 최적값
-                70,   // rsiOverbought
-                20,   // bbPeriod
-                2.0,  // bbMultiplier
-                12,   // macdShortPeriod
-                26,   // macdLongPeriod
-                9,    // macdSignalPeriod
-                14    // atrPeriod — ATR > SMA(ATR,28) 필터로 저변동 구간 제외
+                5, 20, 14,
+                35,   // rsiOversold — 최적값
+                70, 20, 2.0, 12, 26, 9,
+                14,   // atrPeriod
+                0.0,  // atrStopMultiplier (비활성)
+                10.0  // stopLossPercent — 급락 안전망 (-10%), 퍼포먼스 영향 없음
+        );
+    }
+
+    /** ATR×1.5 손절 + 고정 5% 손절 조합 */
+    public static StrategyParam scalpingAtrStop15() {
+        return new StrategyParam(
+                5, 20, 14, 35, 70, 20, 2.0, 12, 26, 9,
+                14,   // atrPeriod
+                1.5,  // atrStopMultiplier
+                5.0   // stopLossPercent (%)
+        );
+    }
+
+    /** ATR×2.0 손절 + 고정 5% 손절 조합 */
+    public static StrategyParam scalpingAtrStop20() {
+        return new StrategyParam(
+                5, 20, 14, 35, 70, 20, 2.0, 12, 26, 9,
+                14,   // atrPeriod
+                2.0,  // atrStopMultiplier
+                5.0   // stopLossPercent (%)
+        );
+    }
+
+    /** ATR×2.5 손절 + 고정 5% 손절 조합 */
+    public static StrategyParam scalpingAtrStop25() {
+        return new StrategyParam(
+                5, 20, 14, 35, 70, 20, 2.0, 12, 26, 9,
+                14,   // atrPeriod
+                2.5,  // atrStopMultiplier
+                5.0   // stopLossPercent (%)
         );
     }
 }

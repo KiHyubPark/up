@@ -2,9 +2,11 @@ package com.clone.up.domain.strategy.service;
 
 import com.clone.up.domain.strategy.StrategyParam;
 import com.clone.up.domain.strategy.TradingStrategy;
+import com.clone.up.domain.strategy.rule.AtrStopLossRule;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseStrategy;
+import org.ta4j.core.Rule;
 import org.ta4j.core.Strategy;
 import org.ta4j.core.indicators.ATRIndicator;
 import org.ta4j.core.indicators.EMAIndicator;
@@ -13,19 +15,23 @@ import org.ta4j.core.indicators.RSIIndicator;
 import org.ta4j.core.indicators.SMAIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.rules.AndRule;
+import org.ta4j.core.rules.OrRule;
 import org.ta4j.core.rules.OverIndicatorRule;
+import org.ta4j.core.rules.StopLossRule;
 import org.ta4j.core.rules.UnderIndicatorRule;
 
 /**
  * RSI + MACD + ATR 스캘핑 전략
  *
  * <p>매수 조건 (3가지 동시 충족)
- * 1. RSI < rsiOversold (과매도 확인, 기본 30)
+ * 1. RSI < rsiOversold (과매도 확인, 기본 35)
  * 2. MACD가 시그널선 위 (상승 모멘텀 확인)
  * 3. ATR > SMA(ATR, atrPeriod*2) — 평균 이상 변동성 (저변동 구간 필터)
  *
- * <p>매도 조건
+ * <p>매도 조건 (하나라도 충족 시 청산)
  * - RSI > RSI_EXIT_LEVEL(50): 과매도 해소, 평균 회귀 완료
+ * - ATR 손절: 현재가 < 진입가 - atrStopMultiplier × ATR(진입 시점) (atrStopMultiplier > 0 시 활성)
+ * - 고정 손절: 현재가 < 진입가 × (1 - stopLossPercent/100) (stopLossPercent > 0 시 활성)
  */
 @Component
 public final class ScalpingStrategy implements TradingStrategy {
@@ -62,8 +68,15 @@ public final class ScalpingStrategy implements TradingStrategy {
                 new OverIndicatorRule(atr, atrSma)
         );
 
-        // 매도: RSI > 50 (과매도 해소, 평균 회귀 완료)
-        var exitRule = new OverIndicatorRule(rsi, RSI_EXIT_LEVEL);
+        // 매도: RSI > 50 (기본), ATR 손절 / 고정 손절 활성 시 OrRule로 확장
+        Rule exitRule = new OverIndicatorRule(rsi, RSI_EXIT_LEVEL);
+
+        if (param.atrStopMultiplier() > 0) {
+            exitRule = new OrRule(exitRule, new AtrStopLossRule(close, atr, param.atrStopMultiplier()));
+        }
+        if (param.stopLossPercent() > 0) {
+            exitRule = new OrRule(exitRule, new StopLossRule(close, param.stopLossPercent()));
+        }
 
         return new BaseStrategy(entryRule, exitRule);
     }
