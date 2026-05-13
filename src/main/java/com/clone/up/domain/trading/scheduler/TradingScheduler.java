@@ -1,6 +1,7 @@
 package com.clone.up.domain.trading.scheduler;
 
 import com.clone.up.config.TradingProperties;
+import com.clone.up.domain.strategy.StrategyFactory;
 import com.clone.up.domain.trading.service.TradingExecutionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * 자동매매 스케줄러.
  *
- * <p>15분 캔들 마감 1분 후(XX:01, XX:16, XX:31, XX:46)에 실행하여
+ * <p>5분 캔들 마감 30초 후(XX:00:30, XX:05:30, ...)에 실행하여
  * 업비트 데이터 전파 지연을 흡수한다.
  *
  * <p>{@code trading.scheduler-enabled=true}일 때만 실제 실행된다.
@@ -23,25 +24,29 @@ public class TradingScheduler {
 
     private final TradingExecutionService executionService;
     private final TradingProperties properties;
+    private final StrategyFactory strategyFactory;
 
-    public TradingScheduler(TradingExecutionService executionService, TradingProperties properties) {
+    public TradingScheduler(TradingExecutionService executionService,
+                            TradingProperties properties,
+                            StrategyFactory strategyFactory) {
         this.executionService = executionService;
         this.properties = properties;
+        this.strategyFactory = strategyFactory;
     }
 
     /**
-     * 15분 캔들 마감 후 1분 뒤에 실행 (데이터 전파 여유).
+     * 5분 캔들 마감 후 30초 뒤에 실행 (데이터 전파 여유).
      *
-     * <p>cron: 초(0) 분(1,16,31,46) 시(*) 일(*) 월(*) 요일(*)
+     * <p>cron: 초(30) 분(0/5) 시(*) 일(*) 월(*) 요일(*)
      */
-    @Scheduled(cron = "0 1,16,31,46 * * * *")
+    @Scheduled(cron = "30 0/5 * * * *")
     public void runTradingCycle() {
         if (!properties.isSchedulerEnabled()) {
             return;
         }
 
         log.info("매매 사이클 시작 — market={}, strategy={}, mode={}",
-                properties.getMarket(), properties.getStrategyType(), properties.getMode());
+                properties.getMarket(), strategyFactory.strategyType(), properties.getMode());
 
         try {
             executionService.execute();

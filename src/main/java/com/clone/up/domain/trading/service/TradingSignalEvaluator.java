@@ -111,7 +111,7 @@ public class TradingSignalEvaluator {
     public BigDecimal lastClosePrice() {
         return candleRepository
                 .findTopByMarketAndCandleTypeOrderByCandleTimeDesc(
-                        properties.getMarket(), properties.getCandleType())
+                        properties.getMarket(), strategyFactory.candleType())
                 .map(Candle::getClosePrice)
                 .orElse(BigDecimal.ZERO);
     }
@@ -127,10 +127,10 @@ public class TradingSignalEvaluator {
         }
 
         BarSeries series = indicatorService.buildBarSeries(
-                properties.getMarket() + "_" + properties.getCandleType(), candles);
+                properties.getMarket() + "_" + strategyFactory.candleType(), candles);
 
         StrategyParam param = properties.resolvedParam();
-        Strategy strategy = strategyFactory.build(properties.getStrategyType(), series, param);
+        Strategy strategy = strategyFactory.build(strategyFactory.strategyType(), series, param);
 
         int lastIndex = series.getEndIndex();
         return new EvalContext(series, strategy, lastIndex);
@@ -140,11 +140,11 @@ public class TradingSignalEvaluator {
         int limit = properties.getCandleWarmupCount() + 50;
         LocalDateTime to = LocalDateTime.now();
         // 캔들 타입 단위(분)에 따라 정확한 시간 범위 계산
-        int unitMinutes = properties.getCandleType().getUnit().orElse(1440); // DAY=1440분
+        int unitMinutes = strategyFactory.candleType().getUnit().orElse(1440); // DAY=1440분
         LocalDateTime from = to.minusMinutes((long) limit * unitMinutes);
         return candleRepository
                 .findByMarketAndCandleTypeAndCandleTimeBetweenOrderByCandleTimeAsc(
-                        properties.getMarket(), properties.getCandleType(), from, to);
+                        properties.getMarket(), strategyFactory.candleType(), from, to);
     }
 
     private int findBarIndex(BarSeries series, LocalDateTime targetTime) {

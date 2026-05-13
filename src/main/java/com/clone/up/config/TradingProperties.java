@@ -1,8 +1,6 @@
 package com.clone.up.config;
 
-import com.clone.up.domain.candle.entity.CandleType;
 import com.clone.up.domain.strategy.StrategyParam;
-import com.clone.up.domain.strategy.StrategyType;
 import com.clone.up.domain.trading.entity.TradingMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -13,70 +11,64 @@ import java.math.BigDecimal;
  * 자동매매 설정.
  *
  * <p>application.yaml의 {@code trading.*} 속성을 바인딩한다.
+ * 캔들 타입과 전략 타입은 각 전략 구현체({@link com.clone.up.domain.strategy.TradingStrategy})에서 정의한다.
  *
  * <pre>
  * trading:
  *   mode: PAPER           # LIVE | PAPER
  *   market: KRW-BTC
- *   candle-type: MINUTE_15
- *   strategy-type: SCALPING
  *   initial-capital: 1000000
- *   invest-ratio: 1.0       # 매수 시 자본 투입 비율 (0~1)
+ *   invest-ratio: 1.0
  *   daily-loss-limit-percent: 3.0
  *   candle-warmup-count: 200
+ *   ema-short-period: 5
+ *   ema-long-period: 20
+ *   rsi-period: 7
+ *   rsi-momentum: 50
+ *   atr-period: 14
+ *   atr-stop-multiplier: 1.0
+ *   atr-take-multiplier: 2.0
+ *   adx-period: 14
+ *   adx-threshold: 25
  * </pre>
  */
 @Component
 @ConfigurationProperties(prefix = "trading")
 public class TradingProperties {
 
-    /** LIVE: 실매매, PAPER: 시그널 기록만 */
     private TradingMode mode = TradingMode.PAPER;
-
     private String market = "KRW-BTC";
-
-    private CandleType candleType = CandleType.MINUTE_15;
-
-    private StrategyType strategyType = StrategyType.SCALPING;
-
-    /** 백테스팅 기준 초기 자본금 (일일 손실 한도 계산에 사용) */
     private BigDecimal initialCapital = BigDecimal.valueOf(1_000_000);
-
-    /** 매수 시 investedAmount = initialCapital × investRatio */
     private double investRatio = 1.0;
-
-    /** 일일 손실 한도 (%). totalPnl < -(initialCapital × percent/100) 이면 당일 거래 중단 */
     private double dailyLossLimitPercent = 3.0;
-
-    /** BarSeries 구성에 필요한 최소 캔들 수 (지표 워밍업) */
     private int candleWarmupCount = 200;
-
-    /** 스케줄러 활성 여부 (운영 환경에서만 true) */
     private boolean schedulerEnabled = false;
 
-    // ── 전략 파라미터 (기본값 = scalpingOptimized) ──────────────────────────
+    // ── 스캘핑 전략 파라미터 ──────────────────────────────────────────────────
 
-    private int shortPeriod = 5;
-    private int longPeriod = 20;
-    private int rsiPeriod = 14;
-    private int rsiOversold = 35;
-    private int rsiOverbought = 70;
-    private int bbPeriod = 20;
-    private double bbMultiplier = 2.0;
-    private int macdShortPeriod = 12;
-    private int macdLongPeriod = 26;
-    private int macdSignalPeriod = 9;
-    private int atrPeriod = 14;
-    private double atrStopMultiplier = 0.0;
-    private double stopLossPercent = 10.0;
+    private int emaShortPeriod    = 5;
+    private int emaLongPeriod     = 20;
+    private int rsiPeriod         = 7;
+    private int rsiMomentum       = 50;
+    private int atrPeriod         = 14;
+    private double atrStopMultiplier = 1.0;
+    private double atrTakeMultiplier = 2.0;
+    private int adxPeriod         = 14;
+    private int adxThreshold      = 25;
+    private int volumeSmaPeriod   = 20;
+    private double volumeMultiplier = 1.2;
+    private int htfEmaPeriod      = 288;   // 288 × 5min ≈ 24H 추세 프록시
+    private int tradeStartHour    = 9;     // KST 09:00 진입 허용 시작
+    private int tradeEndHour      = 22;    // KST 22:00 진입 허용 종료
 
     public StrategyParam resolvedParam() {
         return new StrategyParam(
-                shortPeriod, longPeriod,
-                rsiPeriod, rsiOversold, rsiOverbought,
-                bbPeriod, bbMultiplier,
-                macdShortPeriod, macdLongPeriod, macdSignalPeriod,
-                atrPeriod, atrStopMultiplier, stopLossPercent
+                emaShortPeriod, emaLongPeriod,
+                rsiPeriod, rsiMomentum,
+                atrPeriod, atrStopMultiplier, atrTakeMultiplier,
+                adxPeriod, adxThreshold,
+                volumeSmaPeriod, volumeMultiplier,
+                htfEmaPeriod, tradeStartHour, tradeEndHour
         );
     }
 
@@ -88,12 +80,6 @@ public class TradingProperties {
     public String getMarket() { return market; }
     public void setMarket(String market) { this.market = market; }
 
-    public CandleType getCandleType() { return candleType; }
-    public void setCandleType(CandleType candleType) { this.candleType = candleType; }
-
-    public StrategyType getStrategyType() { return strategyType; }
-    public void setStrategyType(StrategyType strategyType) { this.strategyType = strategyType; }
-
     public BigDecimal getInitialCapital() { return initialCapital; }
     public void setInitialCapital(BigDecimal initialCapital) { this.initialCapital = initialCapital; }
 
@@ -101,52 +87,53 @@ public class TradingProperties {
     public void setInvestRatio(double investRatio) { this.investRatio = investRatio; }
 
     public double getDailyLossLimitPercent() { return dailyLossLimitPercent; }
-    public void setDailyLossLimitPercent(double dailyLossLimitPercent) {
-        this.dailyLossLimitPercent = dailyLossLimitPercent;
-    }
+    public void setDailyLossLimitPercent(double v) { this.dailyLossLimitPercent = v; }
 
     public int getCandleWarmupCount() { return candleWarmupCount; }
-    public void setCandleWarmupCount(int candleWarmupCount) { this.candleWarmupCount = candleWarmupCount; }
+    public void setCandleWarmupCount(int v) { this.candleWarmupCount = v; }
 
     public boolean isSchedulerEnabled() { return schedulerEnabled; }
-    public void setSchedulerEnabled(boolean schedulerEnabled) { this.schedulerEnabled = schedulerEnabled; }
+    public void setSchedulerEnabled(boolean v) { this.schedulerEnabled = v; }
 
-    public int getShortPeriod() { return shortPeriod; }
-    public void setShortPeriod(int shortPeriod) { this.shortPeriod = shortPeriod; }
+    public int getEmaShortPeriod() { return emaShortPeriod; }
+    public void setEmaShortPeriod(int v) { this.emaShortPeriod = v; }
 
-    public int getLongPeriod() { return longPeriod; }
-    public void setLongPeriod(int longPeriod) { this.longPeriod = longPeriod; }
+    public int getEmaLongPeriod() { return emaLongPeriod; }
+    public void setEmaLongPeriod(int v) { this.emaLongPeriod = v; }
 
     public int getRsiPeriod() { return rsiPeriod; }
-    public void setRsiPeriod(int rsiPeriod) { this.rsiPeriod = rsiPeriod; }
+    public void setRsiPeriod(int v) { this.rsiPeriod = v; }
 
-    public int getRsiOversold() { return rsiOversold; }
-    public void setRsiOversold(int rsiOversold) { this.rsiOversold = rsiOversold; }
-
-    public int getRsiOverbought() { return rsiOverbought; }
-    public void setRsiOverbought(int rsiOverbought) { this.rsiOverbought = rsiOverbought; }
-
-    public int getBbPeriod() { return bbPeriod; }
-    public void setBbPeriod(int bbPeriod) { this.bbPeriod = bbPeriod; }
-
-    public double getBbMultiplier() { return bbMultiplier; }
-    public void setBbMultiplier(double bbMultiplier) { this.bbMultiplier = bbMultiplier; }
-
-    public int getMacdShortPeriod() { return macdShortPeriod; }
-    public void setMacdShortPeriod(int macdShortPeriod) { this.macdShortPeriod = macdShortPeriod; }
-
-    public int getMacdLongPeriod() { return macdLongPeriod; }
-    public void setMacdLongPeriod(int macdLongPeriod) { this.macdLongPeriod = macdLongPeriod; }
-
-    public int getMacdSignalPeriod() { return macdSignalPeriod; }
-    public void setMacdSignalPeriod(int macdSignalPeriod) { this.macdSignalPeriod = macdSignalPeriod; }
+    public int getRsiMomentum() { return rsiMomentum; }
+    public void setRsiMomentum(int v) { this.rsiMomentum = v; }
 
     public int getAtrPeriod() { return atrPeriod; }
-    public void setAtrPeriod(int atrPeriod) { this.atrPeriod = atrPeriod; }
+    public void setAtrPeriod(int v) { this.atrPeriod = v; }
 
     public double getAtrStopMultiplier() { return atrStopMultiplier; }
-    public void setAtrStopMultiplier(double atrStopMultiplier) { this.atrStopMultiplier = atrStopMultiplier; }
+    public void setAtrStopMultiplier(double v) { this.atrStopMultiplier = v; }
 
-    public double getStopLossPercent() { return stopLossPercent; }
-    public void setStopLossPercent(double stopLossPercent) { this.stopLossPercent = stopLossPercent; }
+    public double getAtrTakeMultiplier() { return atrTakeMultiplier; }
+    public void setAtrTakeMultiplier(double v) { this.atrTakeMultiplier = v; }
+
+    public int getAdxPeriod() { return adxPeriod; }
+    public void setAdxPeriod(int v) { this.adxPeriod = v; }
+
+    public int getAdxThreshold() { return adxThreshold; }
+    public void setAdxThreshold(int v) { this.adxThreshold = v; }
+
+    public int getVolumeSmaPeriod() { return volumeSmaPeriod; }
+    public void setVolumeSmaPeriod(int v) { this.volumeSmaPeriod = v; }
+
+    public double getVolumeMultiplier() { return volumeMultiplier; }
+    public void setVolumeMultiplier(double v) { this.volumeMultiplier = v; }
+
+    public int getHtfEmaPeriod() { return htfEmaPeriod; }
+    public void setHtfEmaPeriod(int v) { this.htfEmaPeriod = v; }
+
+    public int getTradeStartHour() { return tradeStartHour; }
+    public void setTradeStartHour(int v) { this.tradeStartHour = v; }
+
+    public int getTradeEndHour() { return tradeEndHour; }
+    public void setTradeEndHour(int v) { this.tradeEndHour = v; }
 }

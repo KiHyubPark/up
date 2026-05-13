@@ -1,6 +1,7 @@
 package com.clone.up.domain.trading.service;
 
 import com.clone.up.config.TradingProperties;
+import com.clone.up.domain.strategy.StrategyFactory;
 import com.clone.up.domain.trading.entity.DailyTradingRecord;
 import com.clone.up.domain.trading.entity.LivePosition;
 import com.clone.up.domain.trading.entity.SignalLog;
@@ -38,6 +39,7 @@ public class TradingExecutionService {
     private static final Logger log = LoggerFactory.getLogger(TradingExecutionService.class);
 
     private final TradingProperties properties;
+    private final StrategyFactory strategyFactory;
     private final EmergencyStopService emergencyStop;
     private final DailyRiskGuard dailyRiskGuard;
     private final OrderGuard orderGuard;
@@ -47,6 +49,7 @@ public class TradingExecutionService {
 
     public TradingExecutionService(
             TradingProperties properties,
+            StrategyFactory strategyFactory,
             EmergencyStopService emergencyStop,
             DailyRiskGuard dailyRiskGuard,
             OrderGuard orderGuard,
@@ -54,6 +57,7 @@ public class TradingExecutionService {
             TradingSignalEvaluator signalEvaluator,
             SignalLogRepository signalLogRepository) {
         this.properties = properties;
+        this.strategyFactory = strategyFactory;
         this.emergencyStop = emergencyStop;
         this.dailyRiskGuard = dailyRiskGuard;
         this.orderGuard = orderGuard;
@@ -81,7 +85,7 @@ public class TradingExecutionService {
 
         // 3. 현재 오픈 포지션 확인
         Optional<LivePosition> openPosition = positionService.findOpenPosition(
-                properties.getMarket(), properties.getStrategyType());
+                properties.getMarket(), strategyFactory.strategyType());
 
         if (openPosition.isPresent()) {
             evaluateExit(openPosition.get());
@@ -102,20 +106,20 @@ public class TradingExecutionService {
         }
 
         log.info("진입 시그널 발생 — market={}, strategy={}, price={}, mode={}",
-                properties.getMarket(), properties.getStrategyType(), price, properties.getMode());
+                properties.getMarket(), strategyFactory.strategyType(), price, properties.getMode());
 
         executeEntry(price);
     }
 
     @Transactional
     protected void executeEntry(BigDecimal price) {
-        try (var lock = orderGuard.acquire(properties.getMarket(), properties.getStrategyType())) {
+        try (var lock = orderGuard.acquire(properties.getMarket(), strategyFactory.strategyType())) {
             BigDecimal quantity = calculateQuantity(price);
 
             LivePosition opened = positionService.openPosition(
                     properties.getMarket(),
-                    properties.getStrategyType(),
-                    properties.getCandleType(),
+                    strategyFactory.strategyType(),
+                    strategyFactory.candleType(),
                     properties.getMode(),
                     price,
                     LocalDateTime.now(),
@@ -147,7 +151,7 @@ public class TradingExecutionService {
         }
 
         log.info("청산 시그널 발생 — market={}, strategy={}, positionId={}, price={}, mode={}",
-                properties.getMarket(), properties.getStrategyType(), position.getId(), price,
+                properties.getMarket(), strategyFactory.strategyType(), position.getId(), price,
                 properties.getMode());
 
         executeExit(position, price);
@@ -157,7 +161,7 @@ public class TradingExecutionService {
     protected void executeExit(LivePosition position, BigDecimal price) {
         LivePosition closed = positionService.closePosition(
                 properties.getMarket(),
-                properties.getStrategyType(),
+                strategyFactory.strategyType(),
                 price,
                 LocalDateTime.now()
         );
@@ -185,8 +189,8 @@ public class TradingExecutionService {
     protected void saveSignalLog(SignalType signalType, BigDecimal price, String note) {
         SignalLog sigLog = SignalLog.of(
                 properties.getMarket(),
-                properties.getStrategyType(),
-                properties.getCandleType(),
+                strategyFactory.strategyType(),
+                strategyFactory.candleType(),
                 signalType,
                 properties.getMode(),
                 price,

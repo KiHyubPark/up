@@ -7,11 +7,9 @@ import com.clone.up.global.exception.ErrorCode;
 import com.clone.up.global.exception.UpException;
 import com.clone.up.domain.candle.repository.CandleRepository;
 import feign.FeignException;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,38 +24,6 @@ public class CandleCollectService {
     private final UpbitApiClient upbitApiClient;
     private final CandleSaveService candleSaveService;
     private final CandleRepository candleRepository;
-
-    /**
-     * 서버 시작 시 MINUTE_15 캔들 초기 적재 — 200개 미만이면 수집
-     */
-    @PostConstruct
-    public void initMinute15Candles() {
-        long count = candleRepository.countByMarketAndCandleType("KRW-BTC", CandleType.MINUTE_15);
-        if (count < 200) {
-            log.info("MINUTE_15 캔들 부족 (현재 {}개) — 초기 적재 시작", count);
-            collectMinuteCandlesAsync("KRW-BTC", 15, 200);
-        } else {
-            log.info("MINUTE_15 캔들 충분 (현재 {}개) — 초기 적재 스킵", count);
-        }
-    }
-
-    /**
-     * KRW-BTC 15분봉 자동 수집 (15분마다)
-     */
-    @Scheduled(cron = "0 */15 * * * *")
-    public void scheduledCollectMinute15() {
-        log.info("KRW-BTC 15분봉 자동 수집 시작");
-        collectMinuteCandlesAsync("KRW-BTC", 15, MAX_COUNT_PER_REQUEST);
-    }
-
-    /**
-     * KRW-BTC 5분봉 자동 수집 (5분마다)
-     */
-    @Scheduled(cron = "0 */5 * * * *")
-    public void scheduledCollect() {
-        log.info("KRW-BTC 5분봉 자동 수집 시작");
-        collectMinuteCandles("KRW-BTC", 5, MAX_COUNT_PER_REQUEST);
-    }
 
     private static final int MAX_RETRY = 3;
     private static final long RETRY_DELAY_MS = 2000;

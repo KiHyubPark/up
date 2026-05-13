@@ -25,18 +25,31 @@ feign:
     base-url: ${UPBIT_API_URL:https://api.upbit.com}
 
 trading:
-  mode: PAPER                    # LIVE | PAPER (기본: PAPER — 시그널 기록만)
+  # PAPER : LivePosition·SignalLog DB 기록 O | 실제 업비트 주문 API 호출 X
+  # LIVE  : LivePosition·SignalLog DB 기록 O | 실제 업비트 주문 API 호출 O (미구현)
+  # 캔들 타입·전략 타입은 전략 구현체(ScalpingStrategy 등)에서 직접 정의
+  mode: PAPER
   market: KRW-BTC
-  candle-type: MINUTE_15
-  strategy-type: SCALPING
   initial-capital: 1000000       # 일일 손실 한도 계산 기준 (단위: 원)
   invest-ratio: 1.0              # 매수 시 자본 투입 비율 (0~1)
   daily-loss-limit-percent: 3.0  # 일일 손실 한도 (%)
   candle-warmup-count: 200       # 지표 계산 최소 캔들 수
   scheduler-enabled: true        # true 시 자동매매 스케줄러 활성화
-  # 전략 파라미터 (SCALPING 최적값)
-  rsi-oversold: 35
-  stop-loss-percent: 10.0
+  # 스캘핑 전략 파라미터
+  ema-short-period: 9
+  ema-long-period: 21
+  rsi-period: 14
+  rsi-momentum: 50
+  atr-period: 14
+  atr-stop-multiplier: 1.5
+  atr-take-multiplier: 2.5
+  adx-period: 14
+  adx-threshold: 25
+  volume-sma-period: 20
+  volume-multiplier: 1.2
+  htf-ema-period: 288
+  trade-start-hour: 9
+  trade-end-hour: 22
 
 logging:
   level:
