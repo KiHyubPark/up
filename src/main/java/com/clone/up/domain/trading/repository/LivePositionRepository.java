@@ -36,4 +36,10 @@ public interface LivePositionRepository extends JpaRepository<LivePosition, Long
 
     /** 특정 마켓의 전체 포지션 이력 */
     List<LivePosition> findAllByMarketOrderByCreatedAtDesc(String market);
+
+    /** 특정 마켓의 청산된 포지션 — 청산 시각 오름차순 (MDD·수익 계산용) */
+    List<LivePosition> findAllByMarketAndStatusOrderByExitTimeAsc(String market, PositionStatus status);
+
+    /** 전체 마켓 청산 포지션 — 청산 시각 오름차순 */
+    List<LivePosition> findAllByStatusOrderByExitTimeAsc(PositionStatus status);
 }
