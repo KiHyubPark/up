@@ -33,7 +33,7 @@ trading:
   invest-ratio: 1.0              # 매수 시 자본 투입 비율 (0~1)
   daily-loss-limit-percent: 3.0  # 일일 손실 한도 (%)
   candle-warmup-count: 200       # 지표 계산 최소 캔들 수
-  scheduler-enabled: false       # true 시 자동매매 스케줄러 활성화 (로컬은 false)
+  scheduler-enabled: true        # true 시 자동매매 스케줄러 활성화
   # 전략 파라미터 (SCALPING 최적값)
   rsi-oversold: 35
   stop-loss-percent: 10.0

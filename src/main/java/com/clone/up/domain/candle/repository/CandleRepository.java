@@ -18,4 +18,6 @@ public interface CandleRepository extends JpaRepository<Candle, Long> {
 
     boolean existsByMarketAndCandleTypeAndCandleTime(
             String market, CandleType candleType, LocalDateTime candleTime);
+
+    long countByMarketAndCandleType(String market, CandleType candleType);
 }

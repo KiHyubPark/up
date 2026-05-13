@@ -28,8 +28,9 @@ import java.util.Optional;
  *   <li>시그널 기록 ({@link SignalLog})</li>
  * </ol>
  *
- * <p>PAPER 모드에서는 시그널 로그만 기록하고 실제 포지션 변동은 없다.
- * LIVE 모드에서는 포지션을 DB에 영속화한다 (실제 API 호출은 별도 구현 필요).
+ * <p>PAPER/LIVE 모두 LivePosition을 DB에 영속화한다.
+ * PAPER 모드에서는 실제 주문 API를 호출하지 않는다 (시뮬레이션).
+ * LIVE 모드에서는 실제 주문 API를 추가로 호출한다 (미구현, 추후 연동).
  */
 @Service
 public class TradingExecutionService {
@@ -103,11 +104,7 @@ public class TradingExecutionService {
         log.info("진입 시그널 발생 — market={}, strategy={}, price={}, mode={}",
                 properties.getMarket(), properties.getStrategyType(), price, properties.getMode());
 
-        saveSignalLog(SignalType.BUY_SIGNAL, price, null);
-
-        if (properties.getMode().isLive()) {
-            executeEntry(price);
-        }
+        executeEntry(price);
     }
 
     @Transactional
@@ -115,15 +112,23 @@ public class TradingExecutionService {
         try (var lock = orderGuard.acquire(properties.getMarket(), properties.getStrategyType())) {
             BigDecimal quantity = calculateQuantity(price);
 
-            positionService.openPosition(
+            LivePosition opened = positionService.openPosition(
                     properties.getMarket(),
                     properties.getStrategyType(),
                     properties.getCandleType(),
+                    properties.getMode(),
                     price,
                     LocalDateTime.now(),
                     BigDecimal.ZERO,  // ATR값: 실제 API 연결 후 계산값으로 대체
                     quantity
             );
+            saveSignalLog(SignalType.BUY_SIGNAL, price,
+                    "positionId=" + opened.getId() + ",mode=" + properties.getMode());
+
+            if (properties.getMode().isLive()) {
+                // 실제 주문 API 호출 (미구현 — 추후 연동)
+                log.info("LIVE 주문 API 호출 예정 — positionId={}", opened.getId());
+            }
         } catch (OrderGuard.DuplicateOrderException e) {
             log.warn("중복 진입 차단 — {}", e.getMessage());
         }
@@ -145,22 +150,26 @@ public class TradingExecutionService {
                 properties.getMarket(), properties.getStrategyType(), position.getId(), price,
                 properties.getMode());
 
-        saveSignalLog(SignalType.SELL_SIGNAL, price, null);
-
-        if (properties.getMode().isLive()) {
-            executeExit(price);
-        }
+        executeExit(position, price);
     }
 
     @Transactional
-    protected void executeExit(BigDecimal price) {
+    protected void executeExit(LivePosition position, BigDecimal price) {
         LivePosition closed = positionService.closePosition(
                 properties.getMarket(),
                 properties.getStrategyType(),
                 price,
                 LocalDateTime.now()
         );
+        saveSignalLog(SignalType.SELL_SIGNAL, price,
+                "positionId=" + closed.getId() + ",pnl=" + closed.getRealizedPnl()
+                        + ",mode=" + properties.getMode());
         dailyRiskGuard.recordClose(closed.getRealizedPnl());
+
+        if (properties.getMode().isLive()) {
+            // 실제 주문 API 호출 (미구현 — 추후 연동)
+            log.info("LIVE 매도 주문 API 호출 예정 — positionId={}", closed.getId());
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

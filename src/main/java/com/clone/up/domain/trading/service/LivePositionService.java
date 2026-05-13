@@ -4,6 +4,7 @@ import com.clone.up.domain.candle.entity.CandleType;
 import com.clone.up.domain.strategy.StrategyType;
 import com.clone.up.domain.trading.entity.LivePosition;
 import com.clone.up.domain.trading.entity.PositionStatus;
+import com.clone.up.domain.trading.entity.TradingMode;
 import com.clone.up.domain.trading.repository.LivePositionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +43,7 @@ public class LivePositionService {
             String market,
             StrategyType strategyType,
             CandleType candleType,
+            TradingMode mode,
             BigDecimal entryPrice,
             LocalDateTime entryTime,
             BigDecimal entryAtrValue,
@@ -56,7 +58,7 @@ public class LivePositionService {
         }
 
         LivePosition position = LivePosition.open(
-                market, strategyType, candleType,
+                market, strategyType, candleType, mode,
                 entryPrice, entryTime, entryAtrValue, quantity);
 
         LivePosition saved = repository.save(position);

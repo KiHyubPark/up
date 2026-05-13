@@ -36,6 +36,10 @@ public class LivePosition {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
+    private TradingMode mode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
     private PositionStatus status;
 
     @Column(nullable = false, precision = 30, scale = 8)
@@ -78,6 +82,7 @@ public class LivePosition {
             String market,
             StrategyType strategyType,
             CandleType candleType,
+            TradingMode mode,
             BigDecimal entryPrice,
             LocalDateTime entryTime,
             BigDecimal entryAtrValue,
@@ -86,6 +91,7 @@ public class LivePosition {
         p.market = market;
         p.strategyType = strategyType;
         p.candleType = candleType;
+        p.mode = mode;
         p.status = PositionStatus.OPEN;
         p.entryPrice = entryPrice;
         p.entryTime = entryTime;
@@ -113,6 +119,7 @@ public class LivePosition {
     public String getMarket() { return market; }
     public StrategyType getStrategyType() { return strategyType; }
     public CandleType getCandleType() { return candleType; }
+    public TradingMode getMode() { return mode; }
     public PositionStatus getStatus() { return status; }
     public BigDecimal getEntryPrice() { return entryPrice; }
     public LocalDateTime getEntryTime() { return entryTime; }

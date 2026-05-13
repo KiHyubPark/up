@@ -137,10 +137,11 @@ public class TradingSignalEvaluator {
     }
 
     private List<Candle> loadCandles() {
-        // 최근 N개만 로드 (워밍업 + 여유분)
         int limit = properties.getCandleWarmupCount() + 50;
         LocalDateTime to = LocalDateTime.now();
-        LocalDateTime from = to.minusDays(limit); // 대략적인 from 범위
+        // 캔들 타입 단위(분)에 따라 정확한 시간 범위 계산
+        int unitMinutes = properties.getCandleType().getUnit().orElse(1440); // DAY=1440분
+        LocalDateTime from = to.minusMinutes((long) limit * unitMinutes);
         return candleRepository
                 .findByMarketAndCandleTypeAndCandleTimeBetweenOrderByCandleTimeAsc(
                         properties.getMarket(), properties.getCandleType(), from, to);
