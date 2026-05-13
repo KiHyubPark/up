@@ -9,8 +9,6 @@ import org.ta4j.core.analysis.criteria.MaximumDrawdownCriterion;
 import org.ta4j.core.analysis.criteria.WinningPositionsRatioCriterion;
 import org.ta4j.core.analysis.criteria.pnl.GrossLossCriterion;
 import org.ta4j.core.analysis.criteria.pnl.GrossProfitCriterion;
-import org.ta4j.core.analysis.criteria.pnl.NetLossCriterion;
-import org.ta4j.core.analysis.criteria.pnl.NetProfitCriterion;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -33,11 +31,8 @@ public class PerformanceAnalysisService {
             return new PerformanceMetrics(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, buyAndHold);
         }
 
-        // 수수료 차감 후 순수익 / 초기자본 = 순수익률
-        double netProfit = new NetProfitCriterion()
-                .calculate(series, record)
-                .doubleValue();
-        double totalReturn = netProfit / initialCapital.doubleValue();
+        // 포지션별 수익률을 복리로 누적 (getNetPrice = 수수료 반영 가격)
+        double totalReturn = compoundReturn(record);
 
         double maxDrawdown = new MaximumDrawdownCriterion()
                 .calculate(series, record)
@@ -92,13 +87,26 @@ public class PerformanceAnalysisService {
     }
 
     private double calculateProfitFactor(BarSeries series, TradingRecord record) {
-        double netProfit = new NetProfitCriterion()
+        double grossProfit = new GrossProfitCriterion()
                 .calculate(series, record)
                 .doubleValue();
-        double netLoss = Math.abs(new NetLossCriterion()
+        double grossLoss = Math.abs(new GrossLossCriterion()
                 .calculate(series, record)
                 .doubleValue());
 
-        return netLoss != 0 ? netProfit / netLoss : netProfit > 0 ? Double.MAX_VALUE : 0.0;
+        return grossLoss != 0 ? grossProfit / grossLoss : grossProfit > 0 ? Double.MAX_VALUE : 0.0;
+    }
+
+    private double compoundReturn(TradingRecord record) {
+        double multiplier = 1.0;
+        for (Position pos : record.getPositions()) {
+            if (!pos.isClosed()) continue;
+            double entryNetPrice = pos.getEntry().getNetPrice().doubleValue();
+            double exitNetPrice = pos.getExit().getNetPrice().doubleValue();
+            if (entryNetPrice > 0) {
+                multiplier *= (exitNetPrice / entryNetPrice);
+            }
+        }
+        return multiplier - 1.0;
     }
 }

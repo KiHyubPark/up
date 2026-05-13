@@ -22,7 +22,7 @@ public class FeignConfig {
 
     @Bean
     public RequestInterceptor rateLimitInterceptor() {
-        RateLimiter limiter = RateLimiter.create(8.0); // 업비트 공개 API: 초당 10회 한도, 20% 여유
+        RateLimiter limiter = RateLimiter.create(4.0); // 업비트 공개 API: 초당 10회 한도, 보수적 4회/s
         return template -> limiter.acquire();
     }
 }
