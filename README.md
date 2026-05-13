@@ -1,12 +1,12 @@
 # Up
 
-Upbit API를 기반으로 코인 시세 조회 및 백테스팅을 수행하는 Spring Boot REST API 서버
+Upbit API를 기반으로 코인 시세 조회, 백테스팅, 자동매매 인프라를 제공하는 Spring Boot REST API 서버
 
 ## 프로젝트 목표
 
 업비트(Upbit) 거래소 API를 활용하여 **KRW-BTC 등 코인 쌍에 대한 매매 전략 백테스팅 플랫폼**을 구축한다.
 
-과거 OHLCV(시가·고가·저가·종가·거래량) 캔들 데이터를 수집·저장하고, TA4J 기반 기술지표(SMA, EMA, RSI, MACD, 볼린저밴드)를 계산하여 골든크로스·RSI 과매도·MACD 크로스 등 전략을 시뮬레이션한다. 시뮬레이션 결과로 수익률·최대낙폭·승률·샤프지수 등 성과지표를 제공한다.
+과거 OHLCV(시가·고가·저가·종가·거래량) 캔들 데이터를 수집·저장하고, TA4J 기반 기술지표(SMA, EMA, RSI, MACD, 볼린저밴드)를 계산하여 골든크로스·RSI 과매도·MACD 크로스 등 전략을 시뮬레이션한다. 시뮬레이션 결과로 수익률·최대낙폭·승률·샤프지수 등 성과지표를 제공하며, 자동매매 인프라(PAPER/LIVE 모드, 포지션 영속화, 일일 손실 한도, 중복 주문 방지, 긴급 중단)까지 구현한다.
 
 ### 구현 단계
 
@@ -18,10 +18,13 @@ Upbit API를 기반으로 코인 시세 조회 및 백테스팅을 수행하는 
 | 3 | 매매 전략 구현 (골든크로스, RSI 과매도, MACD 크로스, 볼린저밴드, 스캘핑) | ✅ 완료 |
 | 4 | 백테스팅 엔진 (시뮬레이션 루프 + 수수료 반영) | ✅ 완료 |
 | 5 | 성과지표 계산 + REST API 노출 | ✅ 완료 |
+| 6 | 자동매매 인프라 (PAPER/LIVE, 포지션 영속화, 리스크 관리, 긴급 중단) | ✅ 완료 |
 
 ---
 
 ## 아키텍처 흐름
+
+### 백테스팅
 
 ```
 Upbit 캔들 API
@@ -41,6 +44,23 @@ CandleCollectService  →  DB (Candle 테이블)
                       수익률 / 최대낙폭 / 승률 / 샤프지수
 ```
 
+### 자동매매 루프 (PAPER / LIVE)
+
+```
+TradingScheduler (cron: 15분봉 마감 1분 후)
+    ↓
+TradingExecutionService
+    ├── EmergencyStopService  — 긴급 중단 플래그 확인
+    ├── DailyRiskGuard        — 일일 손실 한도 확인
+    ├── LivePositionRepository — 오픈 포지션 조회
+    │
+    ├─ [포지션 없음] TradingSignalEvaluator.isEntrySignal()
+    │       └─ [BUY 시그널] SignalLog 기록 → LIVE이면 OrderGuard + openPosition
+    │
+    └─ [포지션 있음] TradingSignalEvaluator.isExitSignal()
+            └─ [SELL 시그널] SignalLog 기록 → LIVE이면 closePosition + DailyRiskGuard.recordClose()
+```
+
 ---
 
 ## 기술 스택
@@ -55,7 +75,7 @@ CandleCollectService  →  DB (Candle 테이블)
 | API 문서 | springdoc-openapi | 2.8.6 |
 | 빌드 | Gradle | - |
 
-### 추가 (백테스팅)
+### 추가 (백테스팅 + 자동매매)
 
 | 항목 | 라이브러리 | 역할 |
 |------|-----------|------|
@@ -76,7 +96,9 @@ src/main/java/com/clone/up/
 │   └── UpbitApiClient.java          # 업비트 외부 API Feign 클라이언트
 │
 ├── config/
+│   ├── AsyncConfig.java             # candleCollectExecutor (단일 스레드)
 │   ├── FeignConfig.java             # Feign 타임아웃 / Rate Limit Interceptor (8 req/sec)
+│   ├── TradingProperties.java       # trading.* YAML 바인딩 (@ConfigurationProperties)
 │   └── UpbitErrorDecoder.java       # 업비트 API 에러 공통 처리
 │
 ├── domain/
@@ -101,24 +123,53 @@ src/main/java/com/clone/up/
 │   │   ├── StrategyType.java        # GOLDEN_CROSS / RSI_OVERSOLD / MACD_CROSS / BOLLINGER_BAND / SCALPING
 │   │   ├── StrategyParam.java
 │   │   ├── StrategyFactory.java
+│   │   ├── rule/AtrStopLossRule.java
 │   │   ├── service/GoldenCrossStrategy.java
 │   │   ├── service/RsiOversoldStrategy.java
 │   │   ├── service/MacdCrossStrategy.java
 │   │   ├── service/BollingerBandStrategy.java
 │   │   └── service/ScalpingStrategy.java
 │   │
-│   └── backtest/                    # 백테스팅 엔진
-│       ├── entity/BacktestResult.java
-│       ├── entity/Trade.java
-│       ├── entity/TradeType.java
-│       ├── entity/PerformanceMetrics.java
-│       ├── dto/BacktestRequest.java
-│       ├── dto/BacktestResponse.java
-│       ├── repository/BacktestResultRepository.java
-│       ├── service/BacktestExecutionService.java   # 수수료 0.05% 반영
-│       ├── service/BuyAndHoldBenchmarkService.java
-│       ├── service/PerformanceAnalysisService.java
-│       └── controller/BacktestController.java
+│   ├── backtest/                    # 백테스팅 엔진
+│   │   ├── entity/BacktestResult.java
+│   │   ├── entity/Trade.java
+│   │   ├── entity/TradeType.java
+│   │   ├── entity/PerformanceMetrics.java
+│   │   ├── dto/BacktestRequest.java
+│   │   ├── dto/BacktestResponse.java
+│   │   ├── repository/BacktestResultRepository.java
+│   │   ├── service/BacktestExecutionService.java   # 수수료 0.05% 반영
+│   │   ├── service/BuyAndHoldBenchmarkService.java
+│   │   ├── service/PerformanceAnalysisService.java
+│   │   └── controller/BacktestController.java
+│   │
+│   └── trading/                     # 자동매매 인프라
+│       ├── entity/
+│       │   ├── LivePosition.java        # 오픈/클로즈 포지션 영속화
+│       │   ├── PositionStatus.java      # OPEN | CLOSED
+│       │   ├── SignalLog.java           # BUY_SIGNAL / SELL_SIGNAL 이력
+│       │   ├── SignalType.java
+│       │   ├── DailyTradingRecord.java  # 일일 손실 누계, halted 플래그
+│       │   └── TradingMode.java         # PAPER | LIVE
+│       ├── dto/
+│       │   └── LivePositionResponse.java
+│       ├── repository/
+│       │   ├── LivePositionRepository.java   # + Pessimistic Lock 쿼리
+│       │   ├── SignalLogRepository.java
+│       │   └── DailyTradingRecordRepository.java
+│       ├── service/
+│       │   ├── LivePositionService.java      # openPosition / closePosition
+│       │   ├── TradingSignalEvaluator.java   # TA4J entry/exit rule 평가
+│       │   ├── TradingExecutionService.java  # 자동매매 메인 로직
+│       │   ├── DailyRiskGuard.java           # 일일 손실 한도 & halted 관리
+│       │   ├── EmergencyStopService.java     # AtomicBoolean 긴급 중단
+│       │   └── OrderGuard.java              # ConcurrentHashMap 중복 주문 방지
+│       ├── scheduler/
+│       │   └── TradingScheduler.java         # cron: 15분봉 마감 1분 후
+│       └── controller/
+│           ├── LivePositionController.java   # /api/positions
+│           ├── SignalLogController.java      # /api/signals
+│           └── EmergencyStopController.java  # /api/trading/emergency-stop
 │
 ├── global/
 │   ├── exception/
@@ -135,6 +186,8 @@ src/main/java/com/clone/up/
 
 ## API 엔드포인트
 
+### 시세 / 캔들
+
 | Method | URL | 설명 |
 |--------|-----|------|
 | GET | `/api/v1/market/ticker?markets=KRW-BTC` | 실시간 시세 조회 |
@@ -142,8 +195,62 @@ src/main/java/com/clone/up/
 | POST | `/api/v1/candles/minutes` | 분 캔들 수집 (market, unit, count) |
 | POST | `/api/v1/candles/days` | 일 캔들 수집 |
 | POST | `/api/v1/candles/weeks` | 주 캔들 수집 |
+
+### 백테스팅
+
+| Method | URL | 설명 |
+|--------|-----|------|
 | POST | `/api/v1/backtests` | 백테스팅 실행 |
 | GET | `/api/v1/backtests/{id}` | 백테스팅 결과 조회 |
+
+### 자동매매
+
+| Method | URL | 설명 |
+|--------|-----|------|
+| GET | `/api/positions?market=KRW-BTC` | 마켓별 포지션 이력 조회 |
+| GET | `/api/positions/open` | 전체 오픈 포지션 목록 |
+| GET | `/api/signals?market=KRW-BTC` | 마켓별 최근 시그널 50개 조회 |
+| POST | `/api/trading/emergency-stop?reason=` | 긴급 거래 중단 활성화 |
+| DELETE | `/api/trading/emergency-stop` | 긴급 중단 해제 |
+| GET | `/api/trading/emergency-stop` | 긴급 중단 상태 조회 |
+
+---
+
+## 자동매매 설정 (application.yaml)
+
+```yaml
+trading:
+  mode: PAPER                    # LIVE | PAPER (기본: PAPER — 시그널 기록만)
+  market: KRW-BTC
+  candle-type: MINUTE_15
+  strategy-type: SCALPING
+  initial-capital: 1000000       # 일일 손실 한도 계산 기준 (단위: 원)
+  invest-ratio: 1.0              # 매수 시 자본 투입 비율 (0~1)
+  daily-loss-limit-percent: 3.0  # 일일 손실 한도 (%)
+  candle-warmup-count: 200       # 지표 계산 최소 캔들 수
+  scheduler-enabled: false       # true 시 자동매매 스케줄러 활성화 (로컬은 false)
+  rsi-oversold: 35
+  stop-loss-percent: 10.0
+```
+
+### PAPER vs LIVE 모드
+
+| 항목 | PAPER | LIVE |
+|------|-------|------|
+| 시그널 로그 기록 | ✅ | ✅ |
+| 포지션 영속화 (LivePosition) | ❌ | ✅ |
+| 실제 주문 API 호출 | ❌ (미구현) | ✅ (추후) |
+
+---
+
+## 리스크 관리
+
+| 기능 | 구현 방식 |
+|------|----------|
+| 일일 손실 한도 | `DailyRiskGuard` — DailyTradingRecord.isHalted() 기준, 한도 초과 시 당일 진입 차단 |
+| 중복 주문 방지 (JVM) | `OrderGuard` — ConcurrentHashMap.newKeySet() + try-with-resources |
+| 중복 주문 방지 (DB) | `LivePositionRepository` — `@Lock(PESSIMISTIC_WRITE)` JPQL 쿼리 |
+| 긴급 중단 | `EmergencyStopService` — AtomicBoolean 플래그, REST API로 토글 |
 
 ---
 
